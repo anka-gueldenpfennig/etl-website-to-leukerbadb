@@ -1,18 +1,27 @@
-name: Build & Publish SLF Bulletins
+name: Update webcontent
 
 on:
   schedule:
-    # Three times a day at 07:10, 08:10 and 17:10 in Zürich (cron is UTC: 10 past 6,7,16)
-    - cron: "10 6,7,16 * * *"
+    # Once a week (Monday at 8 am UTC) 
+    - cron: "0 8 * * 1"
   workflow_dispatch: {}
   push:
     branches: [ main ]
 
+concurrency:
+  group: update-webcontent
+  cancel-in-progress: false
+
 jobs:
-  build-and-publish:
+  scrape-and-upsert:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Map GitHub repo secrets into environment vars script reads
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -21,35 +30,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      - name: Build DE and FR bulletins (Europe/Zurich, using today's date)
-        env:
-          TZ: Europe/Zurich
+      - name: Run ETL
         run: |
-          set -e
-          TODAY="$(date -Iminutes)"
-
-          # --- Build DE ---
-          python bulletin/ava_bulletin_signage_de.py --date "$TODAY" --out bulletin/signage_bulletin_de.html
-          mkdir -p public/de/static/images
-          cp -r bulletin/static/images/* public/de/static/images/ 2>/dev/null || true
-          cp bulletin/signage_bulletin_de.html public/de/index.html
-
-          # --- Build FR ---
-          python bulletin/ava_bulletin_signage_fr.py --date "$TODAY" --out bulletin/signage_bulletin_fr.html
-          mkdir -p public/fr/static/images
-          cp -r bulletin/static/images/* public/fr/static/images/ 2>/dev/null || true
-          cp bulletin/signage_bulletin_fr.html public/fr/index.html
-
-      - name: Publish to GitHub Pages (gh-pages branch, /de and /fr)
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: public
-          publish_branch: gh-pages
+          python scripts/scrape_all.py
