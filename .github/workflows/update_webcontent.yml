@@ -15,7 +15,7 @@ concurrency:
 jobs:
   scrape-and-upsert:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       # Map GitHub repo secrets into environment vars script reads
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
