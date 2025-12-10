@@ -38,6 +38,21 @@ jobs:
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      - name: Run ETL
-        run: |
-          python scripts/scrape_all.py
+      - name: Run Main Website ETL 
+        continue-on-error: true
+        run: | 
+          python scripts/scrape_all.py 
+
+      - name: Run OA ETL 
+        continue-on-error: true
+        run: | 
+          python scripts/scrape_oa_tours.py 
+
+      - name: Run Events ETL 
+        continue-on-error: true
+        run: | 
+          python scripts/scrape_events.py
+
+      - name: Fail if any ETL failed
+        if: steps.main.outcome == 'failure' || steps.oa.outcome == 'failure' || steps.events.outcome == 'failure'
+        run: exit 1

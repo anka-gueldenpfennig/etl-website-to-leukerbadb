@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import hashlib
-from supabase import create_client, Client
+from supabase import create_client
 import unicodedata
 import json
 from datetime import datetime, timezone
@@ -1245,7 +1245,6 @@ env_path = project_root / ".env"
 
 # get env to connect to supabase
 if env_path.exists():
-    from dotenv import load_dotenv
     load_dotenv()
 
 # read config
