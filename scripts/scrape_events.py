@@ -75,7 +75,7 @@ def extract_event_overview(soup: BeautifulSoup) -> dict:
             "next_date": None,
             "duration": None,
             "price": None,
-            "booking_url": None,
+            "product_id": None,
         }
 
     top_event = soup.select_one(".top-event-badge") is not None
@@ -107,14 +107,15 @@ def extract_event_overview(soup: BeautifulSoup) -> dict:
     booking_a = root.find_next("a", href=True)
     booking_url_ending = booking_a.get("href")
 
-    if booking_url_ending.startswith("/shop"): # all internal ref links start with shop -> attach leukerbad.ch
+    if booking_url_ending.startswith("/shop"): # all internal ref links start with shop -> we only care about those
         booking_url = "https://leukerbad.ch" + booking_url_ending
+        match = re.match(r"^/shop/.*/([^/]+)/?$", booking_url_ending)
 
-    elif booking_url_ending.startswith("https://"): # catch all other urls - put them in as is
-        booking_url = booking_url_ending
+        if match:
+            product_id = match.group(1)
 
     else: # everything else is not a booking link, so there is no booking (finds next href which is something else)
-        booking_url = None
+        product_id = None
 
     # Combine date+time -> ISO timestamptz
     next_date = None
@@ -131,7 +132,7 @@ def extract_event_overview(soup: BeautifulSoup) -> dict:
         "next_date": next_date,     # ISO string suitable for timestamptz insert/upsert
         "duration": duration,
         "price": price,             # e.g. "ab CHF 51.–" depending on surrounding text
-        "booking_url": booking_url,
+        "product_id": product_id,
     }
 
 def extract_event_all_dates(soup: BeautifulSoup) -> list[str]:
@@ -210,7 +211,10 @@ def extract_event_prices_and_description(soup: BeautifulSoup) -> dict:
     prices_parts: list[str] = []
     desc_parts: list[str] = []
 
-    containers = soup.select('div[data-selector="tab-content-container"]')
+    containers = soup.select(
+        'div[data-selector="tab-content-container"], '
+        'section.inlay > div.grid'
+    )
 
     for container in containers:
         # each sibling block tends to be a direct child <div> with an H2 inside
@@ -222,6 +226,7 @@ def extract_event_prices_and_description(soup: BeautifulSoup) -> dict:
                 continue
 
             heading = norm_text(h2.get_text(" "))
+
             # Remove the heading itself from the captured content
             body_text = norm_text(block.get_text("\n", strip=True))
             if not body_text:
@@ -244,9 +249,45 @@ def extract_event_prices_and_description(soup: BeautifulSoup) -> dict:
                 desc_parts.append(f"{heading}\n{body_text}" if heading else body_text)
 
     all_prices = "\n\n".join(prices_parts).strip() or None
-    description = "\n\n".join(desc_parts).strip() or None
+    details = "\n\n".join(desc_parts).strip() or None
 
-    return {"all_prices": all_prices, "description": description}
+    return {"all_prices": all_prices, "details": details}
+
+def scrape_fr_en(id, lang):
+    url = f'https://leukerbad.ch/{lang}/event/' + str(id)
+
+    # call url and scrape to soup
+    try:
+        resp = requests.get(url, timeout=20)
+
+        if resp.status_code == 404:
+            return {
+                "title": None,
+                "summary": None
+            }, {
+                "all_prices": None,
+                "details": None
+            }
+
+        resp.raise_for_status()  # still fail on other 4xx/5xx
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # call extraction methods on soup
+        header = extract_event_header(soup)
+        tabs = extract_event_prices_and_description(soup) # dict of two strings, price and everything else in description
+
+    except requests.exceptions.RequestException as e:
+        # network error, timeout, 500s, etc. - skip (or log)
+        return {
+            "title": None,
+            "summary": None
+        }, {
+            "all_prices": None,
+            "details": None
+        }
+
+    return (header, tabs)
+
 
 # ------------------------------------------
 # ----------------  MAIN  ------------------
@@ -271,17 +312,19 @@ key = os.environ["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 event_ids = fetch_all_event_ids(supabase)
-print(event_ids)
 
-# empty list of records - will become list of dicts to upsert to db
-records = []
+# empty list of records for each db table - will become list of dicts to upsert to db
+entity_records = []
+information_records = []
+date_records = []
 
 # iterate through list of event_ids
 for id in event_ids:
     # logging - print id
     print(id)
 
-    # make url from base url + tour id
+    ### GERMAN & LANGUAGE INDEPENDENT
+    # make de url from base url + tour id
     url = 'https://leukerbad.ch/event/' + str(id)
 
     # call url and scrape to soup
@@ -298,41 +341,102 @@ for id in event_ids:
         # call extraction methods on soup
         header = extract_event_header(soup)
         overview = extract_event_overview(soup)
-        all_dates = extract_event_all_dates(soup) # list of strings in timestamptz format
         contact = extract_event_contact_block(soup) # string with contact info
         tabs = extract_event_prices_and_description(soup) # dict of two strings, price and everything else in description
 
+        ### ENTITIES ###
+        entity_records.append({
+            "event_id": id,
+            "product_id": overview.get("product_id"),
+            "location": overview.get("location"),
+            "duration": overview.get("duration"),
+            "contact": contact,
+            "top_event": overview.get("top_event"),
+            "updated_at": updated_at
+        })
+
+        ### INFORMATION ###
         # collect all info in list of dicts
-        records.append({
+        information_records.append({
             "event_id": id,
             "language": "de",
             "ref_url": url,
             "title": header.get("title"),
             "summary": header.get("summary"),
-            "top_event": overview.get("top_event"),
-            "location": overview.get("location"),
-            "next_date": overview.get("next_date"),
-            "duration": overview.get("duration"),
-            "price": overview.get("price"),
-            "all_dates": all_dates,
-            "all_prices": tabs.get("all_prices"),
-            "description": tabs.get("description"),
-            "booking_url": overview.get("booking_url"),
-            "contact": contact,
+            "details": tabs.get("details"),
             "updated_at": updated_at
         })
+
+        ### DATES ###
+        # get data for dates table
+        all_dates = extract_event_all_dates(soup) # list of strings in timestamptz format
+        all_dates.insert(0, overview.get("next_date")) # add next date in first position
+
+        # make upsert-able record
+        for date in all_dates:
+            if date and date != None:
+                date_records.append({
+                "event_id": id,
+                "start_at": date,
+                "updated_at": updated_at
+                })
 
     except requests.exceptions.RequestException as e:
         # network error, timeout, 500s, etc. - skip (or log)
         continue
 
-# upsert to Supabase table events
+    ### FRENCH & ENGLISH ###
+    # call for french
+    header, tabs = scrape_fr_en(id, "fr")
+    print(header)
+    print(tabs)
+
+    information_records.append({
+        "event_id": id,
+        "language": "fr",
+        "ref_url": url,
+        "title": header.get("title"),
+        "summary": header.get("summary"),
+        "details": tabs.get("details"),
+        "updated_at": updated_at
+    })
+
+    # call for english
+    header, tabs = scrape_fr_en(id, "en")
+
+    information_records.append({
+        "event_id": id,
+        "language": "en",
+        "ref_url": url,
+        "title": header.get("title"),
+        "summary": header.get("summary"),
+        "details": tabs.get("details"),
+        "updated_at": updated_at
+    })
+
+# upsert to three Supabase tables
 upsert_records(
     supabase,
-    table="events",
-    records=records,
+    table="event_entities",
+    records=entity_records,
+    on_conflict="event_id",
+    chunk_size=1000,
+)
+
+upsert_records(
+    supabase,
+    table="event_information",
+    records=information_records,
     on_conflict="event_id,language",
     chunk_size=1000,
 )
 
-print("Successfully updated events table.")
+upsert_records(
+    supabase,
+    table="event_dates",
+    records=date_records,
+    on_conflict="event_id,start_at",
+    chunk_size=1000,
+)
+
+print("Successfully updated event tables.")
