@@ -110,10 +110,10 @@ def extract_hike_header(soup: BeautifulSoup):
 def extract_hike_overview(soup: BeautifulSoup) -> dict:
     result = {
         "difficulty": None,
-        "distance": None,
-        "time": None,
-        "uphill": None,
-        "downhill": None,
+        "distance_km": None,
+        "duration_hours": None,
+        "uphill_m": None,
+        "downhill_m": None,
     }
 
     ul = soup.select_one('ul.tour-intro-list')
@@ -137,9 +137,9 @@ def extract_hike_overview(soup: BeautifulSoup) -> dict:
                     code = raw_code.replace('&quot;', '').strip(' "\'')
                     # map OA codes (1/2/3) to German labels
                     difficulty_map = {
-                        "1": "leicht",
-                        "2": "mittel",
-                        "3": "schwer",
+                        "1": 1,
+                        "2": 2,
+                        "3": 3,
                     }
                     result["difficulty"] = difficulty_map.get(code, code)
 
@@ -147,22 +147,24 @@ def extract_hike_overview(soup: BeautifulSoup) -> dict:
         elif label == "Distanz":
             b = li.select_one('span b')
             if b:
-                result["distance"] = norm_text(b.get_text(" "))
+                result["distance_km"] = float(norm_text(b.get_text(" ")).removesuffix(" km"))
 
         elif label == "Zeit":
             b = li.select_one('span b')
             if b:
-                result["time"] = norm_text(b.get_text(" "))
+                time_text = norm_text(b.get_text(" ")).removesuffix(" h")
+                hours, minutes = map(int, time_text.split(":"))
+                result["duration_hours"] = hours + minutes / 60
 
         elif label == "Aufstieg":
             b = li.select_one('span b')
             if b:
-                result["uphill"] = norm_text(b.get_text(" "))
+                result["uphill_m"] = float(norm_text(b.get_text(" ")).removesuffix(" m"))
 
         elif label == "Abstieg":
             b = li.select_one('span b')
             if b:
-                result["downhill"] = norm_text(b.get_text(" "))
+                result["downhill_m"] = float(norm_text(b.get_text(" ")).removesuffix(" m"))
 
     return result
 
@@ -223,6 +225,38 @@ def extract_hike_tags(soup: BeautifulSoup):
             tags.append(txt)
     return tags
 
+def scrape_fr_en(id, lang):
+    url = f'https://leukerbad.ch/{lang}/tour/' + str(id)
+
+    # call url and scrape to soup
+    try:
+        resp = requests.get(url, timeout=20)
+
+        if resp.status_code == 404:
+            return {
+                "title": None,
+                "summary": None,
+                "description": None
+            }, []
+
+        resp.raise_for_status()  # still fail on other 4xx/5xx
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # call extraction methods on soup
+        basics = extract_hike_header(soup)
+        directions = extract_hike_details(soup)["trail_directions"]
+        tags = extract_hike_tags(soup)
+
+    except requests.exceptions.RequestException as e:
+        # network error, timeout, 500s, etc. - skip (or log)
+        return {
+            "title": None,
+            "summary": None,
+            "description": None
+        }, []
+
+    return (url, basics, directions, tags)
+
 
 # ------------------------------------------
 # ----------------  MAIN  ------------------
@@ -250,7 +284,8 @@ supabase = create_client(url, key)
 tour_ids = fetch_all_tour_ids(supabase)
 
 # empty list of records - will become list of dicts to upsert to db
-records = []
+stats_records = []
+details_records = []
 
 # iterate through list of tour_ids
 for id in tour_ids:
@@ -277,34 +312,76 @@ for id in tour_ids:
         details = extract_hike_details(soup)
         tags = extract_hike_tags(soup)
 
-        # collect all info in list of dicts
-        records.append({
+        # collect all info in two separate lists of dicts for the two tables
+        stats_records.append({
+            "tour_id": id,
+            "difficulty": overview.get("difficulty"),
+            "distance_km": overview.get("distance_km"),
+            "duration_hours": overview.get("duration_hours"),
+            "uphill_m": overview.get("uphill_m"),
+            "downhill_m": overview.get("downhill_m"),
+            "season_months": details.get("season_months"),  # list of month numbers
+            "updated_at": updated_at
+        })
+
+        details_records.append({
             "tour_id": id,
             "language": "de",
             "ref_url": url,
             "title": basics.get("title"),
             "summary": basics.get("summary"),
             "description": basics.get("description"),
-            "difficulty": overview.get("difficulty"),
-            "distance": overview.get("distance"),
-            "time": overview.get("time"),
-            "uphill": overview.get("uphill"),
-            "downhill": overview.get("downhill"),
             "trail_directions": details.get("trail_directions"),
-            "season": details.get("season_months"),  # list of month numbers
             "tags": tags,  # list of strings
-            "updated_at": updated_at,
+            "updated_at": updated_at
         })
 
     except requests.exceptions.RequestException as e:
         # network error, timeout, 500s, etc. - skip (or log)
         continue
 
+    ### FRENCH ###
+    url, basics, directions, tags = scrape_fr_en(id, "fr")
+    details_records.append({
+        "tour_id": id,
+        "language": "fr",
+        "ref_url": url,
+        "title": basics.get("title"),
+        "summary": basics.get("summary"),
+        "description": basics.get("description"),
+        "trail_directions": directions,
+        "tags": tags,  # list of strings
+        "updated_at": updated_at
+    })
+
+    ### ENGLISH ###
+    url, basics, directions, tags = scrape_fr_en(id, "en")
+    details_records.append({
+        "tour_id": id,
+        "language": "en",
+        "ref_url": url,
+        "title": basics.get("title"),
+        "summary": basics.get("summary"),
+        "description": basics.get("description"),
+        "trail_directions": directions,
+        "tags": tags,  # list of strings
+        "updated_at": updated_at
+    })
+
+# upsert to Supabase tables
+upsert_records(
+    supabase,
+    table="oa_tours_stats",
+    records=stats_records,
+    on_conflict="tour_id",
+    chunk_size=1000,
+)
+
 # upsert to Supabase oa_tours
 upsert_records(
     supabase,
-    table="oa_tours",
-    records=records,
+    table="oa_tours_details",
+    records=details_records,
     on_conflict="tour_id,language",
     chunk_size=1000,
 )
