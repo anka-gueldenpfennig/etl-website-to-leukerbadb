@@ -15,10 +15,11 @@ from pathlib import Path
 # define urls to scrape, separating hub sites and tab sites. Home (leukerbad.ch) is automatically included
 hub_sites = ['thermen', 'sommer', 'winter', 'aufenthalt', 'destination', 'nachhaltigkeit']
 tab_sites = ['therme', 'alpentherme', 'therme51', 'wellness', 'gesundheit', 'wandern', 'biken', 'klettern', 'trailrunning', 'sommeraktivitaten',
-            'ski', 'langlaufen', 'schlitteln', 'winterwandern', 'schneeschuhlaufen', 'skitouren', 'winteraktivitaten',
-            'leukerbadcard', 'wintercard', 'summercard', 'magic', 'guestcard',
+            'ski', 'snowpark', 'langlaufen', 'schlitteln', 'winterwandern', 'schneeschuhlaufen', 'winteraktivitaten',
+            'wintercard', 'summercard', 'magic', 'guestcard', 'indypass',
             'summeracts', 'winteracts', 'sunseteditions', 'weyo',
             'kontakt', 'anreise', 'camping', 'gutschein', 'feedback', 'jobs', 'medien', 'dynamic-pricing', 'versicherung',
+            'gemeinde', 'albinen', 'inden', 'varen', 'weininsel', 'naturpark',
             'restaurant-rinderhutte', 'restaurant-leukerbad-therme', 'restaurant-sportarena',
             'annullationsversicherung', 'nachhaltigkeit',
             'tourismus', 'tourismusorganisationen', 'leistungstragerverbande', 'webcam'

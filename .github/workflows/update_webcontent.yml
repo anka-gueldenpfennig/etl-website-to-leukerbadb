@@ -3,7 +3,7 @@ name: Update webcontent
 on:
   schedule:
     # Once a week (Monday at 8 am UTC) 
-    - cron: "0 8 * * 1"
+    - cron: "0 2 * * 6"
   workflow_dispatch: {}
   push:
     branches: [ main ]
