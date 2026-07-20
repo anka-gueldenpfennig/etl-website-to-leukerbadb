@@ -182,6 +182,8 @@ def merge_rows(r1, r2):
         "phone_display":coalesce(r1.get("phone_display"), r2.get("phone_display")),
         "phone_e164":   coalesce(r1.get("phone_e164"),    r2.get("phone_e164")),
         "content_hash": r1.get("content_hash") or r2.get("content_hash"),
+        "updated_at": r1.get("updated_at"),
+        "language": "de"
     }
 
 def dedupe_by_conflict_key(rows):
@@ -1264,10 +1266,9 @@ for r in records:
 data = []
 for r in records:
     row = {
+        "component": r.get("component"),
         "page_url": r.get("page_url") or "https://leukerbad.ch",
         "page_title": r.get("page_title"),
-        "component": r.get("component"),
-        "ref_url": r.get("ref_url"), 
         "item_index": r.get("tile_index") or r.get("card_index") or r.get("segment_index") or 0,
         "group_id": r.get("group_id"), 
         "title": r.get("title"),
@@ -1275,9 +1276,11 @@ for r in records:
         "cta_url": r.get("cta_url"),
         "price_text": r.get("price_text"),
         "phone_display": r.get("phone_display"),
-        "phone_e164": r.get("phone_e164"), 
+        "phone_e164": r.get("phone_e164"),
         "content_hash": content_hash(r),
-        "updated_at": updated_at
+        "ref_url": r.get("ref_url"),
+        "updated_at": updated_at,
+        "language": "de"
     }
     data.append(row)
 
