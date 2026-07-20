@@ -21,8 +21,8 @@ tab_sites = ['therme', 'alpentherme', 'therme51', 'wellness', 'gesundheit', 'wan
             'kontakt', 'anreise', 'camping', 'gutschein', 'feedback', 'jobs', 'medien', 'dynamic-pricing', 'versicherung',
             'gemeinde', 'albinen', 'inden', 'varen', 'weininsel', 'naturpark',
             'restaurant-rinderhutte', 'restaurant-leukerbad-therme', 'restaurant-sportarena',
-            'annullationsversicherung', 'nachhaltigkeit',
-            'tourismus', 'tourismusorganisationen', 'leistungstragerverbande', 'webcam'
+            'annullationsversicherung', 'nachhaltigkeit', 'swisstainable', 'myclimate', 'barrierefreies-reisen'
+            'tourismus', 'tourismusorganisationen', 'leistungstragerverbande', 'webcam', 'medien'
           ]
 
 # METHODS

@@ -286,7 +286,7 @@ def scrape_fr_en(id, lang):
             "details": None
         }
 
-    return (header, tabs)
+    return (url, header, tabs)
 
 
 # ------------------------------------------
@@ -387,9 +387,7 @@ for id in event_ids:
 
     ### FRENCH & ENGLISH ###
     # call for french
-    header, tabs = scrape_fr_en(id, "fr")
-    print(header)
-    print(tabs)
+    url, header, tabs = scrape_fr_en(id, "fr")
 
     information_records.append({
         "event_id": id,
@@ -402,7 +400,7 @@ for id in event_ids:
     })
 
     # call for english
-    header, tabs = scrape_fr_en(id, "en")
+    url, header, tabs = scrape_fr_en(id, "en")
 
     information_records.append({
         "event_id": id,
