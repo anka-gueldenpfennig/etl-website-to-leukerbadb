@@ -261,7 +261,7 @@ def scrape_fr_en(id, lang):
         resp = requests.get(url, timeout=20)
 
         if resp.status_code == 404:
-            return {
+            return url, {
                 "title": None,
                 "summary": None
             }, {
