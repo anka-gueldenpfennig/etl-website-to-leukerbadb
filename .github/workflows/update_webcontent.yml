@@ -34,25 +34,29 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
+        run: 
           python -m pip install -U pip
           pip install -r requirements.txt
 
       - name: Run Main Website ETL 
+        id: main
         continue-on-error: true
-        run: | 
-          python scripts/scrape_all.py 
+        run: python scripts/scrape_all.py 
 
       - name: Run OA ETL 
+        id: oa
         continue-on-error: true
-        run: | 
-          python scripts/scrape_oa_tours.py 
+        run: python scripts/scrape_oa_tours.py 
 
       - name: Run Events ETL 
+        id: events
         continue-on-error: true
-        run: | 
-          python scripts/scrape_events.py
+        run: python scripts/scrape_events.py
 
       - name: Fail if any ETL failed
-        if: steps.main.outcome == 'failure' || steps.oa.outcome == 'failure' || steps.events.outcome == 'failure'
+        if: always() && (
+          steps.main.outcome == 'failure' ||
+          steps.oa.outcome == 'failure' ||
+          steps.events.outcome == 'failure'
+          )
         run: exit 1
