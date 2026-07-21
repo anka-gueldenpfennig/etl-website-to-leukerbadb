@@ -17,7 +17,7 @@ hub_sites = ['thermen', 'sommer', 'winter', 'aufenthalt', 'destination', 'nachha
 tab_sites = ['therme', 'alpentherme', 'therme51', 'wellness', 'gesundheit', 'wandern', 'biken', 'klettern', 'trailrunning', 'sommeraktivitaten',
             'ski', 'snowpark', 'langlaufen', 'schlitteln', 'winterwandern', 'schneeschuhlaufen', 'winteraktivitaten',
             'wintercard', 'summercard', 'magic', 'guestcard', 'indypass',
-            'summeracts', 'winteracts', 'sunseteditions', 'weyo',
+            'summeracts', 'winteracts', 'weyo',
             'kontakt', 'anreise', 'camping', 'gutschein', 'feedback', 'jobs', 'medien', 'dynamic-pricing', 'versicherung',
             'gemeinde', 'albinen', 'inden', 'varen', 'weininsel', 'naturpark',
             'restaurant-rinderhutte', 'restaurant-leukerbad-therme', 'restaurant-sportarena',
@@ -1168,18 +1168,18 @@ def extract_info_banners(soup: BeautifulSoup, base_url: str, topic: str):
 records = []
 
 # call home (leukerbad.ch) specifically
-url = 'https://leukerbad.ch/'
-print('Scraping home...')
-topic = 'Home' # set topic manually for main/homepage
-resp = requests.get(url, timeout=20)
-resp.raise_for_status()
-soup = BeautifulSoup(resp.content, 'html.parser')
+#url = 'https://leukerbad.ch/'
+#print('Scraping home...')
+#topic = 'Home' # set topic manually for main/homepage
+#resp = requests.get(url, timeout=20)
+#resp.raise_for_status()
+#soup = BeautifulSoup(resp.content, 'html.parser')
 # call regular hub site extractors first
-records.extend(extract_top_section(soup, url, topic))
-records.extend(extract_big_tiles(soup, url, topic))
+#records.extend(extract_top_section(soup, url, topic))
+#records.extend(extract_big_tiles(soup, url, topic))
 # plus call special method only for home offer card segments
-records.extend(extract_home_sections(soup))
-records.extend(extract_newsletter_signup(soup))
+#records.extend(extract_home_sections(soup))
+#records.extend(extract_newsletter_signup(soup))
 
 # iterate urls to scrape hub sites
 for site in hub_sites:
