@@ -1191,6 +1191,10 @@ for site in hub_sites:
     resp = requests.get(url, timeout=20)
     resp.raise_for_status()
 
+    print("requested url:", url)
+    print("final url:", resp.url)
+    print("status:", resp.status_code)
+
     soup = BeautifulSoup(resp.text, "html.parser")
 
     # pull page title first to pass to all other extractor functions
