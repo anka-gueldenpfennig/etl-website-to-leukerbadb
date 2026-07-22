@@ -1167,6 +1167,7 @@ def extract_info_banners(soup: BeautifulSoup, base_url: str, topic: str):
 # empty list of records
 records = []
 
+# TODO reactivate this section when done
 # call home (leukerbad.ch) specifically
 #url = 'https://leukerbad.ch/'
 #print('Scraping home...')
@@ -1184,7 +1185,7 @@ records = []
 # iterate urls to scrape hub sites
 for site in hub_sites:
     print(f"Scraping {site}...")
-    url = 'https://leukerbad.ch/' + str(site)
+    url = 'https://www.leukerbad.ch/' + str(site)
     base_url = url.split('#', 1)[0]
 
     resp = requests.get(url, timeout=20)
