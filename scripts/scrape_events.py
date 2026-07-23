@@ -9,10 +9,15 @@ import os
 import html
 from pathlib import Path
 import re
+import socket
+import urllib3.util.connection as urllib3_cn
+
 
 # ------------------------------------------
 # --------------  METHODS  -----------------
 # ------------------------------------------
+def force_ipv4() -> socket.AddressFamily:
+    return socket.AF_INET
 
 # ---------------- HELPERS -------------
 # helper function to collapse internal whitespace and strip
@@ -254,6 +259,7 @@ def extract_event_prices_and_description(soup: BeautifulSoup) -> dict:
     return {"all_prices": all_prices, "details": details}
 
 def scrape_fr_en(id, lang):
+    urllib3_cn.allowed_gai_family = force_ipv4
     url = f'https://leukerbad.ch/{lang}/event/' + str(id)
 
     # call url and scrape to soup
@@ -320,6 +326,8 @@ date_records = []
 
 # iterate through list of event_ids
 for id in event_ids:
+    urllib3_cn.allowed_gai_family = force_ipv4
+
     # logging - print id
     print(id)
 
