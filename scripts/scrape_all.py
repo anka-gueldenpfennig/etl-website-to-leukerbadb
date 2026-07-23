@@ -24,11 +24,14 @@ tab_sites = ['therme', 'alpentherme', 'therme51', 'wellness', 'gesundheit', 'wan
             'kontakt', 'anreise', 'camping', 'gutschein', 'feedback', 'jobs', 'medien', 'dynamic-pricing', 'versicherung',
             'gemeinde', 'albinen', 'inden', 'varen', 'weininsel', 'naturpark',
             'restaurant-rinderhutte', 'restaurant-leukerbad-therme', 'restaurant-sportarena',
-            'annullationsversicherung', 'nachhaltigkeit', 'swisstainable', 'myclimate', 'barrierefreies-reisen'
+            'annullationsversicherung', 'nachhaltigkeit', 'swisstainable', 'myclimate', 'barrierefreies-reisen',
             'tourismus', 'tourismusorganisationen', 'leistungstragerverbande', 'webcam', 'medien'
           ]
 
 # METHODS
+def force_ipv4() -> socket.AddressFamily:
+    return socket.AF_INET
+
 # ---------------- HELPERS -------------
 # helper function to collapse internal whitespace and strip
 def norm_text(s):
@@ -1170,9 +1173,6 @@ def extract_info_banners(soup: BeautifulSoup, base_url: str, topic: str):
 # empty list of records
 records = []
 
-def force_ipv4() -> socket.AddressFamily:
-    return socket.AF_INET
-
 urllib3_cn.allowed_gai_family = force_ipv4
 
 # call home (leukerbad.ch) specifically
@@ -1196,12 +1196,10 @@ for site in hub_sites:
     base_url = url.split('#', 1)[0]
 
     resp = requests.get(url, timeout=20)
+    if resp.status_code == 404:
+        continue
+
     resp.raise_for_status()
-
-    print("requested url:", url)
-    print("final url:", resp.url)
-    print("status:", resp.status_code)
-
     soup = BeautifulSoup(resp.text, "html.parser")
 
     # pull page title first to pass to all other extractor functions
@@ -1221,6 +1219,9 @@ for site in tab_sites:
     base_url = url.split('#', 1)[0]
 
     resp = requests.get(url, timeout=20)
+    if resp.status_code == 404:
+        continue
+
     resp.raise_for_status()
 
     soup = BeautifulSoup(resp.text, "html.parser")
